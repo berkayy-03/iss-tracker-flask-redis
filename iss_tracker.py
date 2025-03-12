@@ -8,6 +8,8 @@ import redis
 from typing import List, Dict
 from flask import Flask, jsonify
 from geopy.geocoders import Nominatim
+from geopy.exc import GeocoderServiceError, GeocoderTimedOut
+from pyproj import Transformer
 
 logging.basicConfig(level=logging.INFO)
 
@@ -94,6 +96,7 @@ def get_epoch_speed(epoch):
         speed = calculate_speed(entry["velocity"]["x_dot"], entry["velocity"]["y_dot"], entry["velocity"]["z_dot"])
         return jsonify({"epoch": epoch, "speed_km_s": speed})
     return ("Epoch not found", 404)
+from pyproj import Transformer
 
 @app.route('/epochs/<epoch>/location', methods=['GET'])
 def get_epoch_location(epoch):
@@ -103,20 +106,26 @@ def get_epoch_location(epoch):
     if not entry:
         return jsonify({"error": "Epoch not found"}), 404
 
-    latitude = entry["position"]["x"]
-    longitude = entry["position"]["y"]
-    altitude = entry["position"]["z"]
+    x, y, z = entry["position"]["x"], entry["position"]["y"], entry["position"]["z"]
+    transformer = Transformer.from_crs("EPSG:4978", "EPSG:4326", always_xy=True)
+    longitude, latitude, altitude = transformer.transform(x, y, z)
 
     geolocator = Nominatim(user_agent="iss_tracker")
-    location = geolocator.reverse((latitude, longitude), language="en")
+
+    try:
+        location = geolocator.reverse((latitude, longitude), language="en")
+        address = location.address if location else "Unknown"
+    except:
+        address = "Geolocation unavailable"
 
     return jsonify({
         "epoch": epoch,
         "latitude": latitude,
         "longitude": longitude,
         "altitude": altitude,
-        "geoposition": location.address if location else "Unknown"
+        "geoposition": address
     })
+
 
 @app.route('/now', methods=['GET'])
 def get_closest_epoch_api():
@@ -126,12 +135,15 @@ def get_closest_epoch_api():
     closest = min(data, key=lambda x: abs(datetime.datetime.strptime(x["epoch"], "%Y-%jT%H:%M:%S.%fZ").replace(tzinfo=pytz.UTC) - now))
     
     speed = calculate_speed(closest["velocity"]["x_dot"], closest["velocity"]["y_dot"], closest["velocity"]["z_dot"])
-    latitude = closest["position"]["x"]
-    longitude = closest["position"]["y"]
-    altitude = closest["position"]["z"]
+    
+    x, y, z = closest["position"]["x"], closest["position"]["y"], closest["position"]["z"]
+    
+    latitude = math.degrees(math.atan2(z, math.sqrt(x**2 + y**2)))
+    longitude = math.degrees(math.atan2(y, x))
+    altitude = math.sqrt(x**2 + y**2 + z**2) - 6371  
 
     geolocator = Nominatim(user_agent="iss_tracker")
-    location = geolocator.reverse((latitude, longitude), language="en")
+    location = geolocator.reverse((latitude, longitude), language="en", exactly_one=True)
 
     return jsonify({
         "epoch": closest["epoch"],
@@ -145,3 +157,4 @@ def get_closest_epoch_api():
 if __name__ == "__main__":
     load_data_to_redis()
     app.run(host='0.0.0.0', port=5000, debug=True)
+
