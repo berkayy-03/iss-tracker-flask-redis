@@ -2,4 +2,6 @@ flask
 redis
 requests
 geopy
+pytz
+xmltodict
 pytest
