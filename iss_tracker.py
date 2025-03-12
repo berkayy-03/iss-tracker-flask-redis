@@ -96,7 +96,6 @@ def get_epoch_speed(epoch):
         speed = calculate_speed(entry["velocity"]["x_dot"], entry["velocity"]["y_dot"], entry["velocity"]["z_dot"])
         return jsonify({"epoch": epoch, "speed_km_s": speed})
     return ("Epoch not found", 404)
-from pyproj import Transformer
 
 @app.route('/epochs/<epoch>/location', methods=['GET'])
 def get_epoch_location(epoch):
@@ -107,25 +106,26 @@ def get_epoch_location(epoch):
         return jsonify({"error": "Epoch not found"}), 404
 
     x, y, z = entry["position"]["x"], entry["position"]["y"], entry["position"]["z"]
-    transformer = Transformer.from_crs("EPSG:4978", "EPSG:4326", always_xy=True)
-    longitude, latitude, altitude = transformer.transform(x, y, z)
+    
+    latitude = math.degrees(math.atan2(z, math.sqrt(x**2 + y**2)))
+    longitude = math.degrees(math.atan2(y, x))
+    altitude = math.sqrt(x**2 + y**2 + z**2) - 6371  
 
     geolocator = Nominatim(user_agent="iss_tracker")
-
+    
     try:
-        location = geolocator.reverse((latitude, longitude), language="en")
-        address = location.address if location else "Unknown"
+        location = geolocator.reverse((latitude, longitude), language="en", exactly_one=True)
+        geoposition = location.address if location else "Unknown"
     except:
-        address = "Geolocation unavailable"
+        geoposition = "Unknown"
 
     return jsonify({
         "epoch": epoch,
         "latitude": latitude,
         "longitude": longitude,
         "altitude": altitude,
-        "geoposition": address
+        "geoposition": geoposition
     })
-
 
 @app.route('/now', methods=['GET'])
 def get_closest_epoch_api():
