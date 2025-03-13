@@ -6,6 +6,11 @@ This project provides a Flask-based API to access and analyze orbital data. The 
  Data Source
 The dataset used in this project is sourced from NASA's Spot The Station, (https://spotthestation.nasa.gov/trajectory_data.cfm) and provides real-time orbital parameters for tracking space objects. **Note:** The dataset itself is not included in this repository. Users must fetch the data independently.
 
+ System Diagram
+Below is a software diagram illustrating the architecture of the ISS Tracker project:
+
+![System Diagram](Diagram.drawio)
+
  Setup and Installation
 
  Clone the Repository
