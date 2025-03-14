@@ -9,7 +9,7 @@ The dataset used in this project is sourced from NASA's Spot The Station, (https
  System Diagram
 Below is a software diagram illustrating the architecture of the ISS Tracker project:
 
-![System Diagram](Diagram.drawio)
+![System Diagram](Diagram.png)
 
  Setup and Installation
 
